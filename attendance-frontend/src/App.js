@@ -3,7 +3,8 @@ import axios from 'axios';
 import StudentForm from './components/StudentForm';
 import AttendanceTable from './components/AttendanceTable';
 
-const API ="https://attendence-tracker-upo7.onrender.com ";
+const API = "https://attendence-tracker-upo7.onrender.com";
+
 
 function App() {
   const [students, setStudents] = useState([]);
