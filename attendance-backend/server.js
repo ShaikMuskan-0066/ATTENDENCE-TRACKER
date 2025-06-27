@@ -21,10 +21,14 @@ if (!MONGO_URI || !TWILIO_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE) {
 }
 
 // ✅ Twilio setup
-const client = twilio(TWILIO_SID, TWILIO_AUTH_TOKEN);
+const twilioClient = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
+app.locals.twilioClient = twilioClient;
+app.locals.twilioPhone = TWILIO_PHONE;
 
-// ✅ Middleware
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json());
 
 // ✅ Connect to MongoDB
@@ -42,7 +46,7 @@ mongoose.connect(MONGO_URI, {
 const studentSchema = new mongoose.Schema({
   name: { type: String, required: true },
   rollNo: { type: String, required: true, unique: true },
-  parentPhone: { type: String, required: true }
+  parentMobile: { type: String, required: true }
 });
 const Student = mongoose.model('Student', studentSchema);
 
@@ -57,8 +61,8 @@ const Attendance = mongoose.model('Attendance', attendanceSchema);
 // ✅ Add Student
 app.post('/students', async (req, res) => {
   try {
-    const { name, rollNo, parentPhone } = req.body;
-    const student = new Student({ name, rollNo, parentPhone });
+    const { name, rollNo, parentMobile } = req.body;
+    const student = new Student({ name, rollNo, parentMobile });
     await student.save();
     res.status(201).json(student);
   } catch (error) {
@@ -72,6 +76,7 @@ app.get('/students', async (req, res) => {
     const students = await Student.find();
     res.json(students);
   } catch (error) {
+     console.error("❌ Failed to load students:", error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -88,21 +93,19 @@ app.post('/attendance', async (req, res) => {
     const date = new Date().toISOString().split('T')[0];
 
     for (const r of records) {
-      // Save attendance record
       await Attendance.create({
-        student: r.student, // ✅ expecting student _id
+        student: r.student,
         status: r.status,
         date
       });
 
-      // Send SMS if absent
       if (r.status === 'Absent') {
         const student = await Student.findById(r.student);
-        if (student && student.parentPhone) {
-          await client.messages.create({
+        if (student && student.parentMobile) {
+          await twilioClient.messages.create({
             body: `Your child ${student.name} was absent on ${date}.`,
             from: TWILIO_PHONE,
-            to: `+91${student.parentPhone}`
+            to: `+91${student.parentMobile}`
           });
         }
       }
@@ -148,12 +151,14 @@ app.get('/export/excel', async (req, res) => {
     const attendanceData = await Attendance.find().populate('student');
 
     attendanceData.forEach(record => {
-      sheet.addRow({
-        name: record.student.name,
-        rollNo: record.student.rollNo,
-        date: record.date.toISOString().split('T')[0],
-        status: record.status
-      });
+      if (record.student) {
+        sheet.addRow({
+          name: record.student.name,
+          rollNo: record.student.rollNo,
+          date: record.date.toISOString().split('T')[0],
+          status: record.status
+        });
+      }
     });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -162,6 +167,7 @@ app.get('/export/excel', async (req, res) => {
     await workbook.xlsx.write(res);
     res.status(200).end();
   } catch (error) {
+    console.error("\u274c Export error:", error.message);
     res.status(500).json({ error: 'Failed to export Excel', details: error.message });
   }
 });

@@ -17,4 +17,16 @@ router.get('/', async (req, res) => {
   res.json(students);
 });
 
+router.delete('/:id', async (req, res) => {
+  try {
+    const studentId = req.params.id;
+    const deleted = await Student.findByIdAndDelete(studentId);
+    if (!deleted) return res.status(404).json({ error: 'Student not found' });
+    await require('../models/Attendance').deleteMany({ student: studentId });
+    res.json({ message: 'Student and their attendance deleted' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete student' });
+  }
+});
+
 module.exports = router;

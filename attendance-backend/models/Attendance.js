@@ -6,9 +6,21 @@ const attendanceSchema = new mongoose.Schema({
     ref: 'Student',
     required: true
   },
+  name: {
+    type: String,
+    required: true
+  },
+  rollNo: {
+    type: String,
+    required: true
+  },
+  parentMobile: {
+    type: String,
+    required: true
+  },
   date: {
     type: Date,
-    default: Date.now, // ✅ Automatically adds today's date
+    default: Date.now,
     required: true
   },
   status: {
@@ -17,6 +29,7 @@ const attendanceSchema = new mongoose.Schema({
     required: true
   }
 });
+attendanceSchema.index({ student: 1, date: 1 }, { unique: true });
 
 const Attendance = mongoose.model('Attendance', attendanceSchema);
 module.exports = Attendance;

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import './App.css';
 import StudentForm from './components/StudentForm';
 import AttendanceTable from './components/AttendanceTable';
 
-const API = "https://attendence-tracker-upo7.onrender.com";
+const API = "http://localhost:5000";
 
 
 function App() {
@@ -29,23 +30,26 @@ function App() {
 
   // ✅ Save Attendance (Corrected!)
   const save = () => {
-    const records = students.map(s => ({
-      name: s.name,
-      rollNo: s.rollNo,
-      parentMobile: s.parentMobile,
-      student: s._id,
-      status: attendance[s._id] || 'Present'
-    }));
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-    console.log("Submitting attendance:", records); // Debug output
+  const records = students.map(s => ({
+    name: s.name,
+    rollNo: s.rollNo,
+    parentMobile: s.parentMobile,
+    student: s._id,
+    status: attendance[s._id] || 'Present',
+    date: today
+  }));
 
-    axios.post(`${API}/attendance`, records)
-      .then(() => alert("✅ Attendance saved and SMS sent!"))
-      .catch(err => {
-        console.error("Error saving attendance:", err.response?.data || err.message);
-        alert("❌ Failed to save attendance");
-      });
-  };
+  console.log("📤 Submitting attendance:", records);
+
+  axios.post(`${API}/attendance`, records)
+    .then(() => alert("✅ Attendance saved and SMS sent!"))
+    .catch(err => {
+      console.error("❌ Error saving attendance:", err.response?.data || err.message);
+      alert("❌ Failed to save attendance");
+    });
+};
 
   // ✅ Download Excel Report
   const downloadExcel = () => {

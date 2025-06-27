@@ -1,14 +1,44 @@
-const twilio = require('twilio');
+// utils/sms.js
+
 require('dotenv').config();
+const twilio = require('twilio');
 
-const client = new twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
+// ✅ Validate environment variables early
+const { TWILIO_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE } = process.env;
 
-function sendSMS(to, message) {
-  return client.messages.create({
-    body: message,
-    from: process.env.TWILIO_PHONE,
-    to: `+91${to}`
-  });
+if (!TWILIO_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE) {
+  console.error("❌ Twilio config missing. Check your .env file.");
+  process.exit(1);
+}
+
+// ✅ Initialize Twilio client
+const client = twilio(TWILIO_SID, TWILIO_AUTH_TOKEN);
+
+// ✅ Function to send SMS
+async function sendSMS(to, message) {
+  try {
+    if (!to || !message) {
+      throw new Error("Phone number or message is missing.");
+    }
+
+    // Format number to E.164 if not already
+    const formattedNumber = to.startsWith('+') ? to : `+91${to}`;
+
+    console.log(`📤 Sending SMS to ${formattedNumber}...`);
+
+    const result = await client.messages.create({
+      body: message,
+      from: TWILIO_PHONE,
+      to: formattedNumber,
+    });
+
+    console.log("✅ SMS sent successfully. SID:", result.sid);
+    return result;
+
+  } catch (err) {
+    console.error("❌ Failed to send SMS:", err.message);
+    throw err; // ❗ Let the caller handle the error
+  }
 }
 
 module.exports = { sendSMS };
