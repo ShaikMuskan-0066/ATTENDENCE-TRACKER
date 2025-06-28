@@ -1,4 +1,3 @@
-// Load environment variables
 require('dotenv').config();
 
 const express = require('express');
@@ -14,18 +13,15 @@ const TWILIO_SID = process.env.TWILIO_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_PHONE = process.env.TWILIO_PHONE;
 
-// ✅ Check .env variables
 if (!MONGO_URI || !TWILIO_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE) {
   console.error("❌ Missing environment variables");
   process.exit(1);
 }
 
-// ✅ Twilio setup
 const twilioClient = twilio(TWILIO_SID, TWILIO_AUTH_TOKEN);
 app.locals.twilioClient = twilioClient;
 app.locals.twilioPhone = TWILIO_PHONE;
 
-// ✅ CORS setup
 app.use(cors({
   origin: [
     'http://localhost:3000',
@@ -39,7 +35,7 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// ✅ MongoDB connection
+// ✅ Connect MongoDB
 mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
@@ -50,23 +46,12 @@ mongoose.connect(MONGO_URI, {
   process.exit(1);
 });
 
-// ✅ Models
-const studentSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  rollNo: { type: String, required: true, unique: true },
-  parentMobile: { type: String, required: true }
-});
-const Student = mongoose.model('Student', studentSchema);
-
-const attendanceSchema = new mongoose.Schema({
-  student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
-  date: { type: Date, default: Date.now, required: true },
-  status: { type: String, enum: ['Present', 'Absent'], required: true }
-});
-const Attendance = mongoose.model('Attendance', attendanceSchema);
+// ✅ Import models
+const Student = require('./models/Student');
+const Attendance = require('./models/Attendance');
 
 // ✅ Routes
-const attendanceRoutes = require('./routes/attendance');
+const attendanceRoutes = require('./routes/attendanceRoutes');
 app.use('/attendance', attendanceRoutes);
 
 // ✅ Add Student
@@ -108,7 +93,7 @@ app.get('/attendance/:date', async (req, res) => {
   }
 });
 
-// ✅ Export Attendance to Excel
+// ✅ Export to Excel
 app.get('/export/excel', async (req, res) => {
   try {
     const workbook = new ExcelJS.Workbook();
@@ -161,7 +146,6 @@ app.delete('/students/:id', async (req, res) => {
   }
 });
 
-// ✅ Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
 });
