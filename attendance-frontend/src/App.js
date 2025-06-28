@@ -31,18 +31,10 @@ function App() {
 
   // ✅ Save Attendance (Corrected!)
   const save = () => {
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
   const records = students.map(s => ({
-    name: s.name,
-    rollNo: s.rollNo,
-    parentMobile: s.parentMobile,
-    student: s._id,
-    status: attendance[s._id] || 'Present',
-    date: today
+    student: s._id,                            // ✅ only required field
+    status: attendance[s._id] || 'Present'     // ✅ enum: Present or Absent
   }));
-
-  console.log("📤 Submitting attendance:", records);
 
   axios.post(`${API}/attendance`, records)
     .then(() => alert("✅ Attendance saved and SMS sent!"))
