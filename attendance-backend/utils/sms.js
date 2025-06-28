@@ -1,32 +1,14 @@
 // utils/sms.js
 
-require('dotenv').config();
-const twilio = require('twilio');
-
-// Load from global app.locals if available (set in server.js), else fallback
-let client;
-let fromPhone;
-
-if (global.twilioClient && process.env.TWILIO_PHONE) {
-  client = global.twilioClient;
-  fromPhone = process.env.TWILIO_PHONE;
-} else {
-  const { TWILIO_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE } = process.env;
-
-  if (!TWILIO_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE) {
-    console.error("❌ Twilio config missing. Check your .env file.");
-    process.exit(1);
-  }
-
-  client = twilio(TWILIO_SID, TWILIO_AUTH_TOKEN);
-  fromPhone = TWILIO_PHONE;
-}
-
-// ✅ Function to send SMS
-async function sendSMS(to, message) {
+async function sendSMS(app, to, message) {
   try {
-    if (!to || !message) {
-      throw new Error("Phone number or message is missing.");
+    if (!to || !message) throw new Error("Phone number or message is missing.");
+
+    const client = app.locals.twilioClient;
+    const fromPhone = app.locals.twilioPhone;
+
+    if (!client || !fromPhone) {
+      throw new Error("Twilio client not initialized in app.locals.");
     }
 
     const formattedNumber = to.startsWith('+') ? to : `+91${to}`;

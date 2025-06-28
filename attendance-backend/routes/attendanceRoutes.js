@@ -8,7 +8,6 @@ router.post('/', async (req, res) => {
   try {
     const records = req.body;
 
-    // ✅ Validate incoming data
     if (!Array.isArray(records) || records.length === 0) {
       return res.status(400).json({ error: "Expected a non-empty array of attendance records" });
     }
@@ -26,7 +25,6 @@ router.post('/', async (req, res) => {
         continue;
       }
 
-      // ✅ Avoid duplicate attendance for the same day
       const exists = await Attendance.findOne({
         student,
         date: { $gte: dateStart, $lt: dateEnd }
@@ -51,7 +49,7 @@ router.post('/', async (req, res) => {
             ? studentDoc.parentMobile
             : `+91${studentDoc.parentMobile}`;
           try {
-            await sendSMS(phone, `Your child ${studentDoc.name} was absent on ${dateStr}.`);
+            await sendSMS(req.app, phone, `Your child ${studentDoc.name} was absent on ${dateStr}.`);
             console.log(`✅ SMS sent to ${phone}`);
           } catch (err) {
             console.warn(`⚠️ Failed to send SMS to ${phone}: ${err.message}`);
