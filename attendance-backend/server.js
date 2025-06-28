@@ -8,7 +8,7 @@ const ExcelJS = require('exceljs');
 const twilio = require('twilio');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT ?? 5000; // ✅ SAFE fallback for local, no problem on Render
 const MONGO_URI = process.env.MONGO_URI;
 const TWILIO_SID = process.env.TWILIO_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -27,16 +27,15 @@ app.locals.twilioPhone = TWILIO_PHONE;
 
 // ✅ Full CORS setup
 const corsOptions = {
-  origin:  [
-      'http://localhost:3000',
-      'http://localhost:3003',
-      'https://attendence-tracker-1.onrender.com'  // Replace with actual frontend URL if hosted
-    ], // Use specific URL like 'http://localhost:3003' in production
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3003',
+    'https://attendence-tracker-1.onrender.com'
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 app.use(cors(corsOptions));
-
 app.use(express.json());
 
 // ✅ Connect to MongoDB
@@ -93,7 +92,6 @@ app.get('/students', async (req, res) => {
 app.post('/attendance', async (req, res) => {
   try {
     const records = req.body;
-
     if (!Array.isArray(records)) {
       return res.status(400).json({ error: 'Expected an array of records' });
     }
