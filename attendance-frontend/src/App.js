@@ -4,7 +4,8 @@ import './App.css';
 import StudentForm from './components/StudentForm';
 import AttendanceTable from './components/AttendanceTable';
 
-const API = "http://localhost:5000";
+const API = process.env.REACT_APP_API_URL;
+
 
 
 function App() {

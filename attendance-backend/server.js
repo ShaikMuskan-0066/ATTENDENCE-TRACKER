@@ -21,14 +21,22 @@ if (!MONGO_URI || !TWILIO_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE) {
 }
 
 // ✅ Twilio setup
-const twilioClient = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
+const twilioClient = twilio(TWILIO_SID, TWILIO_AUTH_TOKEN);
 app.locals.twilioClient = twilioClient;
 app.locals.twilioPhone = TWILIO_PHONE;
 
-app.use(cors({
-  origin: 'http://localhost:3000',
-  credentials: true
-}));
+// ✅ Full CORS setup
+const corsOptions = {
+  origin:  [
+      'http://localhost:3000',
+      'http://localhost:3003',
+      'https://attendence-tracker-1.onrender.com'  // Replace with actual frontend URL if hosted
+    ], // Use specific URL like 'http://localhost:3003' in production
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+app.use(cors(corsOptions));
+
 app.use(express.json());
 
 // ✅ Connect to MongoDB
@@ -76,7 +84,7 @@ app.get('/students', async (req, res) => {
     const students = await Student.find();
     res.json(students);
   } catch (error) {
-     console.error("❌ Failed to load students:", error.message);
+    console.error("❌ Failed to load students:", error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -167,7 +175,7 @@ app.get('/export/excel', async (req, res) => {
     await workbook.xlsx.write(res);
     res.status(200).end();
   } catch (error) {
-    console.error("\u274c Export error:", error.message);
+    console.error("❌ Export error:", error.message);
     res.status(500).json({ error: 'Failed to export Excel', details: error.message });
   }
 });
@@ -192,6 +200,6 @@ app.delete('/students/:id', async (req, res) => {
 });
 
 // ✅ Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
 });

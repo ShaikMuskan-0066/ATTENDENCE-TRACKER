@@ -1,9 +1,13 @@
-# Node modules
-node_modules/
+# Ignore node modules in all directories
+**/node_modules/
 
-# Environment files
-.env
+# Ignore environment files (both frontend and backend)
+*.env
 
-# Build files
-build/
-dist/
+# Ignore build folders (React or any build system)
+**/build/
+**/dist/
+
+# Optional: log files, system files
+*.log
+.DS_Store
