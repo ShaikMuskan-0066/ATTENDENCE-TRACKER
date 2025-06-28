@@ -1,4 +1,5 @@
 // routes/attendance.js
+
 const express = require('express');
 const router = express.Router();
 const Attendance = require('../models/Attendance');
@@ -40,7 +41,12 @@ router.post('/', async (req, res) => {
         const studentDoc = await Student.findById(student);
         if (studentDoc?.parentMobile) {
           const phone = `+91${studentDoc.parentMobile}`;
-          await sendSMS(phone, `Your child ${studentDoc.name} was absent on ${dateStr}.`);
+          try {
+            await sendSMS(phone, `Your child ${studentDoc.name} was absent on ${dateStr}.`);
+            console.log(`✅ SMS sent to ${phone}`);
+          } catch (err) {
+            console.warn(`⚠️ SMS failed for ${phone}: ${err.message}`);
+          }
         }
       }
     }

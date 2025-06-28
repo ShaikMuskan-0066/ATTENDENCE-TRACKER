@@ -8,13 +8,13 @@ const ExcelJS = require('exceljs');
 const twilio = require('twilio');
 
 const app = express();
-const PORT = process.env.PORT ?? 5000; // ✅ SAFE fallback for local, no problem on Render
+const PORT = process.env.PORT ?? 5000;
 const MONGO_URI = process.env.MONGO_URI;
 const TWILIO_SID = process.env.TWILIO_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_PHONE = process.env.TWILIO_PHONE;
 
-// ✅ Check environment variables
+// ✅ Check .env variables
 if (!MONGO_URI || !TWILIO_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE) {
   console.error("❌ Missing environment variables");
   process.exit(1);
@@ -25,23 +25,24 @@ const twilioClient = twilio(TWILIO_SID, TWILIO_AUTH_TOKEN);
 app.locals.twilioClient = twilioClient;
 app.locals.twilioPhone = TWILIO_PHONE;
 
-// ✅ Full CORS setup
-const corsOptions = {
+// ✅ CORS setup
+app.use(cors({
   origin: [
     'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
     'http://localhost:3003',
     'https://attendence-tracker-1.onrender.com'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-};
-app.use(cors(corsOptions));
+}));
 app.use(express.json());
 
-// ✅ Connect to MongoDB
+// ✅ MongoDB connection
 mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
-  useUnifiedTopology: true,
+  useUnifiedTopology: true
 }).then(() => {
   console.log("✅ MongoDB connected");
 }).catch(err => {
@@ -49,7 +50,7 @@ mongoose.connect(MONGO_URI, {
   process.exit(1);
 });
 
-// ✅ Student Schema
+// ✅ Models
 const studentSchema = new mongoose.Schema({
   name: { type: String, required: true },
   rollNo: { type: String, required: true, unique: true },
@@ -57,13 +58,16 @@ const studentSchema = new mongoose.Schema({
 });
 const Student = mongoose.model('Student', studentSchema);
 
-// ✅ Attendance Schema
 const attendanceSchema = new mongoose.Schema({
   student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
   date: { type: Date, default: Date.now, required: true },
   status: { type: String, enum: ['Present', 'Absent'], required: true }
 });
 const Attendance = mongoose.model('Attendance', attendanceSchema);
+
+// ✅ Routes
+const attendanceRoutes = require('./routes/attendance');
+app.use('/attendance', attendanceRoutes);
 
 // ✅ Add Student
 app.post('/students', async (req, res) => {
@@ -83,44 +87,7 @@ app.get('/students', async (req, res) => {
     const students = await Student.find();
     res.json(students);
   } catch (error) {
-    console.error("❌ Failed to load students:", error.message);
     res.status(500).json({ error: error.message });
-  }
-});
-
-// ✅ Save Attendance + Send SMS to absentees
-app.post('/attendance', async (req, res) => {
-  try {
-    const records = req.body;
-    if (!Array.isArray(records)) {
-      return res.status(400).json({ error: 'Expected an array of records' });
-    }
-
-    const date = new Date().toISOString().split('T')[0];
-
-    for (const r of records) {
-      await Attendance.create({
-        student: r.student,
-        status: r.status,
-        date
-      });
-
-      if (r.status === 'Absent') {
-        const student = await Student.findById(r.student);
-        if (student && student.parentMobile) {
-          await twilioClient.messages.create({
-            body: `Your child ${student.name} was absent on ${date}.`,
-            from: TWILIO_PHONE,
-            to: `+91${student.parentMobile}`
-          });
-        }
-      }
-    }
-
-    res.status(201).json({ message: 'Attendance saved and SMS sent to absentees' });
-  } catch (error) {
-    console.error("❌ Error saving attendance:", error.message);
-    res.status(400).json({ error: error.message });
   }
 });
 
@@ -173,16 +140,14 @@ app.get('/export/excel', async (req, res) => {
     await workbook.xlsx.write(res);
     res.status(200).end();
   } catch (error) {
-    console.error("❌ Export error:", error.message);
     res.status(500).json({ error: 'Failed to export Excel', details: error.message });
   }
 });
 
-// ✅ Delete student and their attendance
+// ✅ Delete student + attendance
 app.delete('/students/:id', async (req, res) => {
   try {
     const studentId = req.params.id;
-
     const student = await Student.findByIdAndDelete(studentId);
     if (!student) {
       return res.status(404).json({ error: 'Student not found' });
@@ -192,7 +157,6 @@ app.delete('/students/:id', async (req, res) => {
 
     res.json({ message: 'Student and attendance deleted' });
   } catch (error) {
-    console.error("❌ DELETE error:", error.message);
     res.status(500).json({ error: 'Failed to delete student' });
   }
 });
