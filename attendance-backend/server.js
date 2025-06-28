@@ -4,34 +4,34 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const ExcelJS = require('exceljs');
+const twilio = require('twilio');
 
 const app = express();
 const PORT = process.env.PORT ?? 5000;
-
-// ✅ Load .env variables
-const { MONGO_URI, TWILIO_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE } = process.env;
+const MONGO_URI = process.env.MONGO_URI;
+const TWILIO_SID = process.env.TWILIO_SID;
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+const TWILIO_PHONE = process.env.TWILIO_PHONE;
 
 if (!MONGO_URI || !TWILIO_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE) {
   console.error("❌ Missing environment variables");
   process.exit(1);
 }
 
-// ✅ Initialize Twilio client directly
-const twilio = require('twilio');
 const twilioClient = twilio(TWILIO_SID, TWILIO_AUTH_TOKEN);
-
-// ✅ Export Twilio from global place (optional but safe)
 app.locals.twilioClient = twilioClient;
 app.locals.twilioPhone = TWILIO_PHONE;
 
-// ✅ CORS
 app.use(cors({
   origin: [
     'http://localhost:3000',
     'http://localhost:3001',
-    'https://attendence-tracker-1.onrender.com'
+    'http://localhost:3002',
+    'http://localhost:3003',
+    'https://attendence-tracker-1.onrender.com',
+    'https://attendence-tracer.netlify.app'
   ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
@@ -52,10 +52,10 @@ const Student = require('./models/Student');
 const Attendance = require('./models/Attendance');
 
 // ✅ Routes
-app.use('/attendance', require('./routes/attendanceRoutes'));
-app.use('/export', require('./routes/exportRoutes'));
+const attendanceRoutes = require('./routes/attendanceRoutes');
+app.use('/attendance', attendanceRoutes);
 
-// ✅ Student Routes
+// ✅ Add Student
 app.post('/students', async (req, res) => {
   try {
     const { name, rollNo, parentMobile } = req.body;
@@ -67,6 +67,7 @@ app.post('/students', async (req, res) => {
   }
 });
 
+// ✅ Get All Students
 app.get('/students', async (req, res) => {
   try {
     const students = await Student.find();
@@ -76,7 +77,7 @@ app.get('/students', async (req, res) => {
   }
 });
 
-// ✅ Attendance by Date
+// ✅ Get Attendance by Date
 app.get('/attendance/:date', async (req, res) => {
   try {
     const dateParam = new Date(req.params.date);
@@ -93,7 +94,43 @@ app.get('/attendance/:date', async (req, res) => {
   }
 });
 
-// ✅ Delete Student and Attendance
+// ✅ Export to Excel
+app.get('/export/excel', async (req, res) => {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Attendance Report');
+
+    sheet.columns = [
+      { header: 'Student Name', key: 'name', width: 25 },
+      { header: 'Roll No', key: 'rollNo', width: 15 },
+      { header: 'Date', key: 'date', width: 15 },
+      { header: 'Status', key: 'status', width: 15 },
+    ];
+
+    const attendanceData = await Attendance.find().populate('student');
+
+    attendanceData.forEach(record => {
+      if (record.student) {
+        sheet.addRow({
+          name: record.student.name,
+          rollNo: record.student.rollNo,
+          date: record.date.toISOString().split('T')[0],
+          status: record.status
+        });
+      }
+    });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=attendance_report.xlsx');
+
+    await workbook.xlsx.write(res);
+    res.status(200).end();
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to export Excel', details: error.message });
+  }
+});
+
+// ✅ Delete student + attendance
 app.delete('/students/:id', async (req, res) => {
   try {
     const studentId = req.params.id;
@@ -103,24 +140,13 @@ app.delete('/students/:id', async (req, res) => {
     }
 
     await Attendance.deleteMany({ student: studentId });
+
     res.json({ message: 'Student and attendance deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete student' });
   }
 });
 
-// ✅ Optional: Test SMS route
-const { sendSMS } = require('./utils/sms');
-app.get('/test-sms', async (req, res) => {
-  try {
-    await sendSMS('+91YOUR_PHONE_NUMBER', 'Test message from attendance app');
-    res.send('✅ SMS sent');
-  } catch (err) {
-    res.status(500).send('❌ SMS failed: ' + err.message);
-  }
-});
-
-// ✅ Start Server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
 });
