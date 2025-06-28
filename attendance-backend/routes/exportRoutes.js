@@ -17,20 +17,22 @@ router.get('/excel', async (req, res) => {
       { header: 'Status', key: 'status', width: 15 }
     ];
 
-    // Fetch Attendance
+    // Fetch Attendance with student details
     const records = await Attendance.find().populate('student');
 
-    // Add rows
+    // Add rows with safety check
     records.forEach((rec) => {
-      sheet.addRow({
-        name: rec.student.name,
-        roll: rec.student.rollNumber,
-        date: rec.date.toISOString().split('T')[0],
-        status: rec.status
-      });
+      if (rec.student) {
+        sheet.addRow({
+          name: rec.student.name,
+          roll: rec.student.rollNo, // use `rollNo` if that's what your model uses
+          date: rec.date.toISOString().split('T')[0],
+          status: rec.status
+        });
+      }
     });
 
-    // Set headers
+    // Set headers to trigger download
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
